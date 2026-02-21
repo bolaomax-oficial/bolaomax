@@ -1,0 +1,276 @@
+# Sistema de Indicações BolãoMax - URLs de Teste
+
+## 🌐 URLs Principais
+
+### Admin - Indicações
+```
+http://localhost:5174/admin/indicacoes
+```
+**O que testar:**
+- Dashboard com 4 cards de estatísticas
+- Botão "Gerar Dados Mock"
+- Configuração da campanha (editar/salvar)
+- Ativar/Desativar campanha
+- Tabela de relatório de indicações
+- Alterar status das indicações
+- Ranking Top 10 indicadores
+
+---
+
+### Cliente - Indique Amigos
+```
+http://localhost:5174/indicacoes
+```
+**O que testar:**
+- Cards de estatísticas (saldo, total, ganhos)
+- Copiar código de indicação
+- Copiar link de indicação
+- Botão WhatsApp
+- Botão Email
+- Botão Facebook
+- Como Funciona (explicação)
+- Tabela "Minhas Indicações"
+- Card "Usar Saldo" (quando saldo > 0)
+
+---
+
+## 🎯 Fluxo de Teste Completo
+
+### 1. Preparar Ambiente
+```
+1. Acesse: http://localhost:5174/admin/indicacoes
+2. Clique em "Gerar Dados Mock"
+3. ✅ Verifica se dados aparecem
+```
+
+### 2. Testar Admin
+```
+Admin Dashboard:
+- Verifica estatísticas carregam
+- Teste editar campanha
+- Altere valor de bônus
+- Salve e recarregue página
+- Verifique se salvou
+
+Admin Relatório:
+- Localize indicação com status "Pendente"
+- Altere para "Confirmada"
+- Altere para "Paga"
+- Verifique se estatísticas atualizam
+```
+
+### 3. Testar Cliente
+```
+Painel Cliente:
+- Copie código de indicação
+- Clique "Copiar Link"
+- Teste botão WhatsApp (abre conversa?)
+- Teste botão Email (abre cliente?)
+- Verifique tabela de indicações
+- Confira saldo disponível
+```
+
+---
+
+## 📱 Teste em Dispositivos
+
+### Desktop
+```
+Chrome:  http://localhost:5174/indicacoes
+Firefox: http://localhost:5174/indicacoes
+Edge:    http://localhost:5174/indicacoes
+```
+
+### Mobile (DevTools F12 → Toggle Device)
+```
+iPhone SE (375x667)
+iPad (768x1024)
+Galaxy S20 (360x800)
+```
+
+**Verificar:**
+- Layout responsivo
+- Botões de compartilhamento
+- Tabelas com scroll horizontal
+- Cards empilham em mobile
+
+---
+
+## 🔍 Console do Navegador (F12)
+
+### Ver Dados no LocalStorage
+```javascript
+// Ver campanha
+localStorage.getItem('bolaomax_referral_campaign')
+
+// Ver indicações
+localStorage.getItem('bolaomax_referrals')
+
+// Ver perfis
+localStorage.getItem('bolaomax_user_referral_profiles')
+```
+
+### Manipular Dados
+```javascript
+// Carregar service no console
+// (copie o código do referralService.ts ou use window)
+
+// Ver campanha
+console.log(JSON.parse(localStorage.getItem('bolaomax_referral_campaign')))
+
+// Limpar tudo
+localStorage.removeItem('bolaomax_referral_campaign')
+localStorage.removeItem('bolaomax_referrals')
+localStorage.removeItem('bolaomax_user_referral_profiles')
+location.reload()
+```
+
+---
+
+## ✅ Checklist de Teste
+
+### Admin
+- [ ] Página carrega sem erros
+- [ ] "Gerar Dados Mock" funciona
+- [ ] Dashboard mostra 4 cards
+- [ ] Botão "Editar" habilita campos
+- [ ] Botão "Salvar" persiste alterações
+- [ ] Ativar/Desativar alterna status
+- [ ] Tabela de relatório aparece
+- [ ] Dropdown de status funciona
+- [ ] Ranking Top 10 aparece
+- [ ] Toast de sucesso aparece
+
+### Cliente
+- [ ] Página carrega sem erros
+- [ ] Código de indicação aparece
+- [ ] Link de indicação correto
+- [ ] Botão "Copiar Código" funciona
+- [ ] Botão "Copiar Link" funciona
+- [ ] WhatsApp abre com mensagem
+- [ ] Email abre cliente
+- [ ] Facebook compartilha
+- [ ] Seção "Como Funciona" clara
+- [ ] Tabela de indicações aparece
+- [ ] Status com cores corretas
+- [ ] Saldo disponível correto
+- [ ] Card "Usar Saldo" aparece quando saldo > 0
+
+### Responsivo
+- [ ] Desktop (>1024px) OK
+- [ ] Tablet (768px) OK
+- [ ] Mobile (375px) OK
+- [ ] Tabelas com scroll horizontal
+- [ ] Botões com tamanho adequado
+
+### Dark/Light Mode
+- [ ] Alterna entre temas
+- [ ] Cores legíveis em ambos
+- [ ] Cards com contraste
+
+---
+
+## 🐛 Possíveis Erros e Soluções
+
+### Erro: "Cannot read property 'getCampaign' of undefined"
+**Solução:** Service não importado corretamente
+```bash
+# Verificar arquivo existe
+ls src/web/services/referralService.ts
+
+# Verificar import
+grep "referralService" src/web/pages/admin/indicacoes.tsx
+```
+
+### Erro: "Module not found: ShareButtons"
+**Solução:** Componente não copiado
+```bash
+# Copiar componente
+cp src/web/components/ShareButtons.tsx ...
+```
+
+### Erro: "useTheme is not a function"
+**Solução:** Contexto não existe
+```bash
+# Verificar contexto
+ls src/web/contexts/ThemeContext.tsx
+```
+
+### Erro: "Route not found"
+**Solução:** Rota não configurada em app.tsx
+```bash
+# Verificar rotas
+grep "indicacoes" src/web/app.tsx
+```
+
+---
+
+## 📊 Dados Mock Gerados
+
+### Usuários
+```
+1. João Silva (JOAO2026123)
+   - Saldo: R$ 50,00
+   - 5 indicações
+   
+2. Maria Santos (MARIA2026456)
+   - Saldo: R$ 30,00
+   - 3 indicações
+   
+3. Pedro Oliveira (PEDRO2026789)
+   - Saldo: R$ 20,00
+   - 2 indicações
+```
+
+### Indicações
+```
+1. Ana Costa (Paga)
+   - Valor: R$ 50,00
+   - Bônus: R$ 10,00
+   
+2. Carlos Almeida (Confirmada)
+   - Valor: R$ 60,00
+   - Bônus: R$ 10,00
+   
+3. Beatriz Lima (Pendente)
+   - Valor: R$ 45,00
+   - Bônus: R$ 10,00
+```
+
+---
+
+## 🚀 Comandos de Desenvolvimento
+
+```bash
+# Ver servidor rodando
+curl http://localhost:5174/api/ping
+
+# Verificar arquivos criados
+find src/web -name "*referral*" -o -name "*indicacoes*"
+
+# Ver logs do servidor
+# (se usando npm run dev, logs aparecem no terminal)
+
+# Rebuildar (se necessário)
+npm run build
+```
+
+---
+
+## 📞 Suporte
+
+Se encontrar problemas:
+1. Verifique console do navegador (F12)
+2. Limpe LocalStorage
+3. Recarregue página (Ctrl+R)
+4. Gere dados mock novamente
+5. Consulte documentação completa
+
+**Arquivos de Referência:**
+- `SISTEMA_INDICACOES_DOCUMENTACAO.md` - Documentação completa
+- `SISTEMA_INDICACOES_QUICK_START.md` - Guia rápido
+
+---
+
+**Última Atualização:** 17 de Fevereiro de 2026  
+**Versão:** 1.0.0

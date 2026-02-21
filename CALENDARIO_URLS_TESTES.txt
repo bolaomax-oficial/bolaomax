@@ -1,0 +1,165 @@
+🎯 CALENDÁRIO DE SORTEIOS - URLs PARA TESTAR
+
+═══════════════════════════════════════════════════════════════════════════
+
+🌐 PÁGINAS WEB
+
+Página Pública (Com Header + Footer):
+http://localhost:5175/calendar
+
+Painel Admin (Com AdminLayout):
+http://localhost:5175/admin/calendario
+
+═══════════════════════════════════════════════════════════════════════════
+
+📡 ENDPOINTS DA API
+
+1. LISTAR TODOS OS SORTEIOS
+   http://localhost:5175/api/sorteios
+   
+   Com filtros:
+   http://localhost:5175/api/sorteios?tipo=megasena
+   http://localhost:5175/api/sorteios?mes=2&ano=2025
+   http://localhost:5175/api/sorteios?tipo=lotofacil&mes=2
+
+2. PRÓXIMOS SORTEIOS (COM BADGES)
+   http://localhost:5175/api/sorteios/proximos
+   http://localhost:5175/api/sorteios/proximos?dias=30
+   http://localhost:5175/api/sorteios/proximos?dias=7
+
+3. SORTEIOS POR MÊS
+   http://localhost:5175/api/sorteios/mes/2?ano=2025
+   http://localhost:5175/api/sorteios/mes/3?ano=2025
+   http://localhost:5175/api/sorteios/mes/12?ano=2025
+
+4. EXPORTAR - .ICS (PARA CALENDÁRIOS)
+   http://localhost:5175/api/sorteios/exportar?formato=ics
+   http://localhost:5175/api/sorteios/exportar?formato=ics&loterias=megasena,lotofacil
+   http://localhost:5175/api/sorteios/exportar?formato=ics&mes=2&ano=2025
+
+5. EXPORTAR - CSV (PARA EXCEL)
+   http://localhost:5175/api/sorteios/exportar?formato=csv
+   http://localhost:5175/api/sorteios/exportar?formato=csv&loterias=megasena,lotofacil
+
+6. EXPORTAR - JSON
+   http://localhost:5175/api/sorteios/exportar?formato=json
+   http://localhost:5175/api/sorteios/exportar?formato=json&mes=2
+
+7. ALERTAS - CRIAR
+   curl -X POST http://localhost:5175/api/sorteios/alertas \
+     -H "Content-Type: application/json" \
+     -d '{"usuarioId":"user123","sorteioId":"megasena_20250219_2789","tipo":"email","diasAntes":1}'
+
+8. ALERTAS - LISTAR
+   http://localhost:5175/api/sorteios/alertas/usuario/user123
+
+9. ALERTAS - DELETAR
+   curl -X DELETE http://localhost:5175/api/sorteios/alertas/alerta_1771336370370
+
+═══════════════════════════════════════════════════════════════════════════
+
+🧪 TESTES COM CURL
+
+# Ver todos os sorteios (pretty print)
+curl http://localhost:5175/api/sorteios | python3 -m json.tool | head -50
+
+# Contar total
+curl http://localhost:5175/api/sorteios | python3 -c "import sys,json; print('Total:', json.load(sys.stdin)['total'])"
+
+# Ver primeiro sorteio
+curl http://localhost:5175/api/sorteios | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0])" | python3 -m json.tool
+
+# Próximos 7 dias
+curl http://localhost:5175/api/sorteios/proximos?dias=7 | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Próximos: {d[\"total\"]} sorteios')"
+
+# Exportar .ics
+curl http://localhost:5175/api/sorteios/exportar?formato=ics > /tmp/sorteios.ics && echo "✅ .ics salvo"
+
+# Validar estrutura de alerta
+curl -X POST http://localhost:5175/api/sorteios/alertas \
+  -H "Content-Type: application/json" \
+  -d '{"usuarioId":"test","sorteioId":"megasena_20250219_2789"}' | python3 -m json.tool
+
+═══════════════════════════════════════════════════════════════════════════
+
+🎨 LOTERIAS DISPONÍVEIS (9 tipos)
+
+megasena
+lotofacil
+quina
+lotomania
+duplasena
+timemania
+diadesorte
+supersete
+federal
+
+═══════════════════════════════════════════════════════════════════════════
+
+📊 EXEMPLOS DE RESPOSTAS
+
+1. GET /api/sorteios
+{
+  "success": true,
+  "total": 45,
+  "data": [
+    {
+      "id": "megasena_20250219_2789",
+      "tipo": "megasena",
+      "numero": 2789,
+      "data": "2025-02-19",
+      "hora": "20:00",
+      "dia_semana": "Quarta",
+      "mes": 2,
+      "ano": 2025,
+      "local_sorteio": "São Paulo",
+      "cor": "#10B981",
+      "icone": "trophy"
+    }
+  ]
+}
+
+2. POST /api/sorteios/alertas
+{
+  "success": true,
+  "message": "Alerta criado com sucesso",
+  "data": {
+    "id": "alerta_1771336370370",
+    "usuarioId": "user123",
+    "sorteioId": "megasena_20250219_2789",
+    "tipo": "email",
+    "diasAntes": 1,
+    "ativo": true
+  }
+}
+
+═══════════════════════════════════════════════════════════════════════════
+
+✨ FEATURES
+
+✅ 45 sorteios pré-cadastrados
+✅ 9 loterias diferentes
+✅ Cores específicas por loteria
+✅ Ícones do lucide-react
+✅ Exportação em 3 formatos (.ics, .csv, .json)
+✅ Sistema de alertas CRUD
+✅ Badges dinâmicos (Hoje, Amanhã, Esta Semana)
+✅ Responsivo para mobile
+✅ Dark theme
+✅ Página pública + admin
+
+═══════════════════════════════════════════════════════════════════════════
+
+📝 NOTAS
+
+- Todos os sorteios de Fevereiro/2025 em diante
+- Data de hoje afeta os badges (relativo)
+- Alertas são armazenados em memória (mock)
+- Para produção: conectar ao SQLite real
+- CORS habilitado para desenvolvimento
+
+═══════════════════════════════════════════════════════════════════════════
+
+Desenvolvido por: Runable AI
+Data: 17 de Fevereiro de 2026
+Status: ✅ 100% Completo e Funcionando
