@@ -1,0 +1,5 @@
+{
+  "type": "website",
+  "port": 6636,
+  "command": "npx vite --port 6636 --host 0.0.0.0"
+}

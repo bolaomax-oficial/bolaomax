@@ -1,0 +1,14 @@
+{
+  "id": "bolaomax-live",
+  "name": "BolãoMax",
+  "description": "Sistema completo de bolões de loteria online",
+  "url": "https://bolaomax.com",
+  "ogImage": "/og-image.png",
+  "favicon": "/favicon.ico",
+  "twitter": {
+    "card": "summary_large_image",
+    "site": "@bolaomax"
+  },
+  "themeColor": "#02CF51",
+  "previewPort": 6636
+}

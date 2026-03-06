@@ -1,0 +1,41 @@
+# BolãoMax - Robots.txt
+# https://bolaomax.com.br
+
+User-agent: *
+Allow: /
+
+# Disallow private/admin pages
+Disallow: /admin/
+Disallow: /minha-conta
+Disallow: /checkout
+Disallow: /pagamento-pix
+Disallow: /teste-paginas
+Disallow: /diagnostico
+Disallow: /nav
+
+# Disallow login (not useful for search)
+Disallow: /login
+
+# Allow important pages
+Allow: /lotofacil
+Allow: /megasena
+Allow: /quina
+Allow: /internacional
+Allow: /resultados
+Allow: /clube-vip
+Allow: /como-funciona
+Allow: /cadastro
+
+# Sitemap location
+Sitemap: https://bolaomax.com.br/sitemap.xml
+
+# Crawl-delay (be respectful to bots)
+Crawl-delay: 1
+
+# Google-specific
+User-agent: Googlebot
+Allow: /
+
+# Bing-specific
+User-agent: Bingbot
+Allow: /

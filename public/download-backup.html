@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download Backup - BolãoMax</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #0A0F1C 0%, #1a1f2e 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      background: rgba(17, 24, 39, 0.9);
+      border: 2px solid rgba(2, 207, 81, 0.5);
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+    
+    .icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #02CF51 0%, #01A841 100%);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 30px;
+      font-size: 40px;
+    }
+    
+    h1 {
+      font-size: 32px;
+      margin-bottom: 15px;
+      background: linear-gradient(135deg, #02CF51 0%, #69F0AE 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    p {
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+    
+    .info-box {
+      background: rgba(2, 207, 81, 0.1);
+      border: 1px solid rgba(2, 207, 81, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+      text-align: left;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    
+    .info-label {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 14px;
+    }
+    
+    .info-value {
+      color: #02CF51;
+      font-weight: 600;
+    }
+    
+    .download-btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #02CF51 0%, #01A841 100%);
+      color: white;
+      padding: 18px 50px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 18px;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 30px rgba(2, 207, 81, 0.3);
+    }
+    
+    .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px rgba(2, 207, 81, 0.4);
+    }
+    
+    .download-btn:active {
+      transform: translateY(0);
+    }
+    
+    .features {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .features h3 {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 15px;
+    }
+    
+    .feature-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      text-align: left;
+    }
+    
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .check {
+      color: #02CF51;
+      font-weight: bold;
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        padding: 30px 20px;
+      }
+      
+      h1 {
+        font-size: 24px;
+      }
+      
+      .feature-list {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📦</div>
+    
+    <h1>Backup Completo BolãoMax</h1>
+    
+    <p>
+      Backup completo do sistema incluindo código-fonte, database, 
+      configurações e toda a documentação.
+    </p>
+    
+    <div class="info-box">
+      <div class="info-row">
+        <span class="info-label">📁 Arquivo</span>
+        <span class="info-value">backup.tar.gz</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">📊 Tamanho</span>
+        <span class="info-value">3.2 MB</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">📂 Arquivos</span>
+        <span class="info-value">937 arquivos</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">🕐 Data</span>
+        <span class="info-value">21/02/2026 23:37</span>
+      </div>
+    </div>
+    
+    <a href="/backup.tar.gz" download="bolaomax-backup-completo.tar.gz" class="download-btn">
+      ⬇️ Baixar Backup
+    </a>
+    
+    <div class="features">
+      <h3>✅ Incluído no Backup:</h3>
+      <div class="feature-list">
+        <div class="feature-item">
+          <span class="check">✓</span>
+          <span>Código-fonte completo</span>
+        </div>
+        <div class="feature-item">
+          <span class="check">✓</span>
+          <span>Database SQLite</span>
+        </div>
+        <div class="feature-item">
+          <span class="check">✓</span>
+          <span>Carrinho + Timer</span>
+        </div>
+        <div class="feature-item">
+          <span class="check">✓</span>
+          <span>Checkout multipagamento</span>
+        </div>
+        <div class="feature-item">
+          <span class="check">✓</span>
+          <span>Dashboard Admin</span>
+        </div>
+        <div class="feature-item">
+          <span class="check">✓</span>
+          <span>Fundo R$ 100k</span>
+        </div>
+        <div class="feature-item">
+          <span class="check">✓</span>
+          <span>Webhook Pagar.me</span>
+        </div>
+        <div class="feature-item">
+          <span class="check">✓</span>
+          <span>Documentação completa</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    document.querySelector('.download-btn').addEventListener('click', function() {
+      setTimeout(() => {
+        alert('✅ Download iniciado!\n\nApós baixar:\n1. Extrair: tar -xzf backup.tar.gz\n2. Instalar: npm install\n3. Iniciar: node server-express.js\n\nVeja BACKUP_INFO.md para mais detalhes.');
+      }, 500);
+    });
+  </script>
+</body>
+</html>
