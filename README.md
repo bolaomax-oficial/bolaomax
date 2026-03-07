@@ -1,159 +1,164 @@
 # 🎰 BolãoMax
 
-**Plataforma de Bolões de Loteria Online** — aposte em grupo, ganhe em grande!
+**Plataforma de Bolões de Loteria Online** — React + Express + PostgreSQL
 
-[![Deploy Railway](https://img.shields.io/badge/deploy-railway-purple)](https://railway.app)
-[![Node.js](https://img.shields.io/badge/node-20+-green)](https://nodejs.org)
-[![React](https://img.shields.io/badge/react-19-blue)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/typescript-5-blue)](https://typescriptlang.org)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app)
 
 ---
 
-## 🚀 Stack Tecnológica
+## 🌐 URLs
 
-| Camada | Tecnologia |
-|--------|-----------|
-| **Frontend** | React 19 + Vite + TailwindCSS 4 |
-| **Backend (Railway)** | Express 5 + Node.js 20 + TypeScript (tsx) |
-| **Backend (Cloudflare)** | Hono + Cloudflare Workers |
-| **Database** | PostgreSQL (Railway) / SQLite (local) / D1 (Cloudflare) |
-| **ORM** | Drizzle ORM |
-| **Auth** | JWT customizado + better-auth |
-| **Pagamentos** | Pagar.me (PIX, cartão) |
-| **Roteamento** | Wouter |
+| Ambiente | URL |
+|----------|-----|
+| Produção (Railway) | `https://bolaomax.up.railway.app` |
+| API Ping | `https://bolaomax.up.railway.app/api/ping` |
+| Health Check | `https://bolaomax.up.railway.app/health` |
 
 ---
 
-## 📋 Funcionalidades
+## ✨ Funcionalidades
 
-### Loterias Suportadas
-- 🟢 Mega-Sena | Lotofácil | Quina | Lotomania
-- 🟡 Timemania | Dia de Sorte | Super Sete | Dupla Sena
-- 🔵 Federal | Internacional
-
-### Para Usuários
-- ✅ Cadastro e login com JWT
-- ✅ Carteira digital (recarga via PIX)
-- ✅ Carrinho com timer de reserva (5 min)
-- ✅ Histórico de bolões e participações
-- ✅ Programa de indicações
-- ✅ Clube VIP com benefícios exclusivos
-
-### Para Administradores
-- ✅ Dashboard com métricas em tempo real
-- ✅ Criação e gerenciamento de bolões
-- ✅ Sistema financeiro (fundo, saques, receitas)
-- ✅ Controle de usuários e sub-usuários
-- ✅ Automação de bolões (cron jobs)
-- ✅ Calendário de sorteios
-- ✅ Blog e SEO
-- ✅ Configurações globais do sistema
+- **Frontend React 19** com Vite + TailwindCSS
+- **API REST** com Express 5 (ESM)
+- **Autenticação JWT** (login, registro, middleware)
+- **Painel Admin** — bolões, usuários, configurações, financeiro
+- **Jogos suportados**: Mega-Sena, Lotofácil, Quina, Timemania, Lotomania, Dia de Sorte, Dupla Sena, Super Sete
+- **Sistema de cotas** — compra, carrinho, checkout
+- **Carteira digital** — saldo, recargas, histórico
+- **Pagar.me** integração PIX/cartão
+- **PostgreSQL** em produção (Railway) + **SQLite** em desenvolvimento
 
 ---
 
-## 🏃 Como Executar Localmente
+## 🚀 Execução Local
 
 ### Pré-requisitos
-- Node.js 20+
-- npm
 
-### Instalação
+- Node.js >= 20
+- npm >= 10
+
+### Instalar e rodar
 
 ```bash
-# Clonar repositório
-git clone https://github.com/seu-usuario/bolaomax.git
+# 1. Clonar
+git clone https://github.com/SEU_USUARIO/bolaomax.git
 cd bolaomax
 
-# Instalar dependências
-npm install --legacy-peer-deps
+# 2. Instalar dependências
+npm install
 
-# Configurar variáveis de ambiente
+# 3. Configurar variáveis de ambiente
 cp .env.example .env.local
-# Editar .env.local com suas configurações
+# edite .env.local com suas credenciais
 
-# Executar em desenvolvimento (modo Cloudflare Workers)
+# 4. Build do frontend
 npm run build
-npm run dev       # Apenas frontend (Vite)
 
-# OU executar servidor Express (modo Railway/Node.js)
-npm run dev:api   # Servidor Express com API completa
+# 5. Iniciar o servidor
+npm start
+# → http://localhost:3000
 ```
 
-### Banco de dados local (D1 SQLite)
+### Scripts disponíveis
 
-```bash
-# Aplicar migrações
-npx wrangler d1 migrations apply DB --local
-
-# Aplicar migrações adicionais
-npx wrangler d1 execute DB --local --file=migrations-sqlite/0002_carrinho_sistema.sql
-npx wrangler d1 execute DB --local --file=migrations-sqlite/0003_sub_usuarios_permissoes.sql
-npx wrangler d1 execute DB --local --file=migrations-sqlite/0004_sistema_automacao_boloes.sql
-npx wrangler d1 execute DB --local --file=migrations-sqlite/0005_sistema_configuracoes.sql
-```
+| Script | Descrição |
+|--------|-----------|
+| `npm run build` | Compila o frontend para `dist/` |
+| `npm start` | Inicia o servidor de produção |
+| `npm run dev` | Dev completo (API + Vite concorrentes) |
+| `npm run dev:web` | Apenas Vite dev server |
+| `npm run dev:api` | Apenas servidor API com watch |
+| `npm run db:generate` | Gera migrações Drizzle |
+| `npm run db:migrate` | Aplica migrações no banco |
+| `npm run db:seed` | Popula dados iniciais |
+| `npm run db:studio` | Drizzle Studio (browser GUI) |
 
 ---
 
-## 🚂 Deploy no Railway
+## 📦 Deploy no Railway
 
-### 1. Criar repositório no GitHub
+### 1. GitHub
 
 ```bash
-git remote add origin https://github.com/seu-usuario/bolaomax.git
+git init
+git add .
+git commit -m "feat: setup inicial BolãoMax"
+git remote add origin https://github.com/SEU_USUARIO/bolaomax.git
 git push -u origin main
 ```
 
-### 2. Configurar Railway
+### 2. Railway — Novo Projeto
 
 1. Acesse [railway.app](https://railway.app) → **New Project**
-2. **Deploy from GitHub repo** → selecione `bolaomax`
-3. Adicione serviço **PostgreSQL** (+ New → Database → PostgreSQL)
+2. Selecione **Deploy from GitHub repo** → escolha `bolaomax`
+3. Na aba **Settings** do serviço, configure:
 
-### 3. Variáveis de Ambiente no Railway
+| Campo | Valor |
+|-------|-------|
+| **Build Command** | `npm run build` |
+| **Start Command** | `npm start` |
+| **Health Check Path** | `/health` |
 
-| Variável | Valor |
-|----------|-------|
-| `DATABASE_URL` | (automático - PostgreSQL do Railway) |
-| `NODE_ENV` | `production` |
-| `PORT` | `3000` |
-| `BETTER_AUTH_SECRET` | `openssl rand -base64 32` |
-| `SECRET_KEY` | `openssl rand -base64 32` |
-| `SITE_URL` | `https://seu-app.up.railway.app` |
-| `PAGARME_API_KEY` | Sua chave Pagar.me |
+### 3. Adicionar PostgreSQL
 
-### 4. Deploy automático
+1. No projeto Railway → **+ New** → **Database** → **PostgreSQL**
+2. O Railway cria e injeta `DATABASE_URL` automaticamente
 
-O Railway detecta o `railway.toml` e faz deploy automaticamente a cada `git push`.
+### 4. Variáveis de Ambiente
 
----
+No serviço Node.js, adicione as variáveis da aba **Variables**:
 
-## ☁️ Deploy no Cloudflare Pages (alternativo)
+```
+NODE_ENV=production
+PORT=8080                          # Railway define automaticamente
+SECRET_KEY=<openssl rand -base64 32>
+SITE_URL=https://bolaomax.up.railway.app
+CORS_ORIGIN=https://bolaomax.up.railway.app
+PAGARME_SANDBOX=true
+```
+
+### 5. Migrações PostgreSQL
 
 ```bash
-# Criar projeto D1
-npx wrangler d1 create bolaomax-production
+# Instalar Railway CLI
+npm install -g @railway/cli
 
-# Atualizar wrangler.json com o database_id gerado
+# Login e vinculação
+railway login
+railway link
 
 # Aplicar migrações
-npx wrangler d1 migrations apply DB
+railway run npm run db:migrate
 
-# Deploy
-npm run build
-npx wrangler pages deploy dist/client --project-name bolaomax
+# Popular dados iniciais (opcional)
+railway run npm run db:seed
+```
+
+### 6. Verificar deploy
+
+```bash
+curl https://bolaomax.up.railway.app/health
+# → { "status": "ok", "uptime": 42.5 }
+
+curl https://bolaomax.up.railway.app/api/ping
+# → { "status": "ok", "message": "Pong! ...", "db": "postgresql" }
 ```
 
 ---
 
-## 🔑 Credenciais Padrão (desenvolvimento)
+## 🗄️ Estrutura do Banco de Dados
 
-| Perfil | Email | Senha |
-|--------|-------|-------|
-| Admin | `admin@bolaomax.com` | `admin123` |
-| Demo | `demo@bolaomax.com` | `demo123` |
-| Usuário | `usuario@teste.com` | `123456` |
-
-> ⚠️ **Sempre altere as senhas em produção!**
+| Tabela | Descrição |
+|--------|-----------|
+| `users` | Usuários (admin, user) |
+| `sessions` | Sessões JWT |
+| `boloes` | Bolões de loteria |
+| `participacoes` | Participações/cotas |
+| `transactions` | Transações financeiras |
+| `lottery_draws` | Sorteios programados |
+| `lottery_results` | Resultados dos sorteios |
+| `notifications` | Notificações do usuário |
+| `configuracoes_sistema` | Configurações do sistema |
 
 ---
 
@@ -161,68 +166,56 @@ npx wrangler pages deploy dist/client --project-name bolaomax
 
 ```
 bolaomax/
+├── server.js                    # Express ESM — entry point
+├── vite.config.ts               # Vite (base="/", outDir="dist")
+├── package.json
+├── .env.example
+├── drizzle-postgres.config.ts   # Drizzle config PostgreSQL
 ├── src/
-│   ├── api/                    # Backend API
-│   │   ├── database/           # Schema, migrations, seeds
-│   │   ├── routes/             # Express routes (.js)
-│   │   ├── modules/            # Módulos especiais (Timemania, Lotomania, Dia de Sorte)
-│   │   ├── services/           # Lógica de negócio
-│   │   ├── middleware/         # Auth, rate limiting
-│   │   └── cron-jobs.js        # Automação
-│   └── web/                    # Frontend React
-│       ├── pages/              # Páginas (loteria, admin, etc)
-│       ├── components/         # Componentes reutilizáveis
-│       ├── contexts/           # React contexts
-│       ├── hooks/              # Custom hooks
-│       └── services/           # API clients
-├── migrations-sqlite/          # Migrações SQLite adicionais
-├── public/                     # Assets estáticos
-├── server-prod.ts              # ✅ Servidor Railway (tsx)
-├── server-express.js           # Servidor Express legado
-├── railway.toml                # Configuração Railway
-├── nixpacks.toml               # Build Railway
-├── wrangler.json               # Cloudflare Workers
-└── vite.config.ts              # Build Vite
+│   ├── web/                     # React frontend
+│   │   ├── main.tsx
+│   │   ├── app.tsx
+│   │   ├── pages/
+│   │   └── components/
+│   └── api/
+│       ├── routes/              # Express routers
+│       ├── services/            # Business logic
+│       ├── database/
+│       │   ├── connection.js    # Pool PG + SQLite fallback
+│       │   ├── schema-postgres.ts
+│       │   └── schema.ts
+│       └── middleware/
+│           └── auth.js
+├── migrations/                  # Drizzle migrations
+└── dist/                        # Build output (gitignored)
 ```
 
 ---
 
-## 📊 APIs Disponíveis
+## 🔐 Credenciais de Teste (dev local)
 
-```
-GET  /api/ping                      Health check
-GET  /api/health                    Status detalhado
-POST /api/auth/login                Login
-POST /api/auth/register             Cadastro
-GET  /api/auth/me                   Perfil do usuário
+| Role | Email | Senha |
+|------|-------|-------|
+| Admin | admin@bolaomax.com | admin123 |
+| Demo | demo@bolaomax.com | demo123 |
+| Usuário | usuario@teste.com | 123456 |
 
-GET  /api/admin/boloes              Listar bolões (admin)
-POST /api/admin/boloes              Criar bolão
-GET  /api/admin/boloes/:id          Bolão por ID
-PUT  /api/admin/boloes/:id          Atualizar bolão
-DELETE /api/admin/boloes/:id        Excluir bolão
-
-GET  /api/carrinho                  Ver carrinho
-POST /api/carrinho                  Adicionar ao carrinho
-GET  /api/carteira                  Saldo da carteira
-POST /api/carteira/recarregar       Recarga PIX
-
-GET  /api/financeiro/resumo         Resumo financeiro
-GET  /api/financeiro/transacoes     Histórico de transações
-```
+> ⚠️ **Altere todas as senhas antes de ir para produção!**
 
 ---
 
-## 🤝 Contribuindo
+## 🛠️ Tech Stack
 
-1. Fork o repositório
-2. Crie sua branch: `git checkout -b feat/minha-feature`
-3. Commit suas mudanças: `git commit -m 'feat: minha feature'`
-4. Push: `git push origin feat/minha-feature`
-5. Abra um Pull Request
+- **Frontend**: React 19, Vite 7, TailwindCSS 4, Wouter, Radix UI
+- **Backend**: Node.js 20+, Express 5, ESM
+- **Database**: PostgreSQL (produção) / SQLite (dev)
+- **ORM**: Drizzle ORM
+- **Auth**: JWT (jsonwebtoken + bcryptjs)
+- **Pagamentos**: Pagar.me
+- **Deploy**: Railway
 
 ---
 
 ## 📄 Licença
 
-Proprietary — BolãoMax © 2026
+Proprietário — BolãoMax © 2026

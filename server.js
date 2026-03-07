@@ -1,491 +1,323 @@
 /**
- * BolãoMax - Production Server (Railway)
- * 
+ * BolãoMax — Production Server
+ * Node.js ESM + Express 5  |  Railway-ready
+ *
  * Serve:
- *  - API REST completa (/api/*)
- *  - Frontend React buildado (dist/client)
- * 
- * Compatível com: Node.js 18+, Railway, Render
+ *   • Frontend React (dist/)         → GET /*
+ *   • API REST completa              → /api/*
+ *   • Health check                   → /health
  */
 
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname  = path.dirname(__filename);
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const app     = express();
+const PORT    = process.env.PORT || 3000;
+const IS_PROD = process.env.NODE_ENV === 'production';
+const DIST    = path.join(__dirname, 'dist');
 
-// ============================================================
-// MIDDLEWARE GLOBAL
-// ============================================================
+// ─────────────────────────────────────────────
+// MIDDLEWARES GLOBAIS
+// ─────────────────────────────────────────────
 
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
   credentials: true,
 }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logger
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    if (req.path.startsWith('/api')) {
-      console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} (${duration}ms)`);
-    }
-  });
+// logger
+app.use((req, _res, next) => {
+  if (req.path.startsWith('/api') || req.path === '/health') {
+    process.stdout.write(`[${new Date().toISOString()}] ${req.method} ${req.path}\n`);
+  }
   next();
 });
 
-// ============================================================
-// HEALTH CHECK (antes de qualquer middleware pesado)
-// ============================================================
+// ─────────────────────────────────────────────
+// HEALTH CHECK  (Railway healthcheck path)
+// ─────────────────────────────────────────────
 
-app.get('/api/ping', (req, res) => {
-  res.json({ 
-    message: `Pong! ${Date.now()}`,
-    status: 'ok',
-    env: NODE_ENV,
-    uptime: Math.floor(process.uptime()),
-  });
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
 
-app.get('/api/health', (req, res) => {
+// ─────────────────────────────────────────────
+// API  /api/ping
+// ─────────────────────────────────────────────
+
+app.get('/api/ping', (_req, res) => {
   res.json({
     status: 'ok',
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    env: NODE_ENV,
-    database: process.env.DATABASE_URL ? 'postgresql' : 'sqlite',
+    message: `Pong! ${Date.now()}`,
+    env: process.env.NODE_ENV || 'development',
+    db: process.env.DATABASE_URL ? 'postgresql' : 'sqlite',
   });
 });
 
-// ============================================================
-// CARREGAR ROTAS DA API
-// ============================================================
+// ─────────────────────────────────────────────
+// CARREGA ROTAS DA API  (importação dinâmica)
+// ─────────────────────────────────────────────
 
-async function loadRoutes() {
-  try {
-    // Autenticação
-    const { default: authRoutes } = await import('./src/api/routes/auth.js');
-    app.use('/api/auth', authRoutes);
-    console.log('✅ [AUTH] Rotas carregadas');
-  } catch (e) {
-    console.warn('⚠️  [AUTH] Falha ao carregar rotas:', e.message);
-  }
-
-  try {
-    // Pagar.me (pagamentos)
-    const { default: pagarmeRoutes } = await import('./src/api/routes/pagarme.js');
-    app.use('/api/pagarme', pagarmeRoutes);
-    app.use('/api/webhooks/pagarme', pagarmeRoutes);
-    console.log('✅ [PAGARME] Rotas carregadas');
-  } catch (e) {
-    console.warn('⚠️  [PAGARME] Falha ao carregar rotas:', e.message);
-  }
-
-  try {
-    // Financeiro (carteira, fundo, saques)
-    const { default: financeiroRoutes } = await import('./src/api/routes/financeiro.js');
-    app.use('/api/financeiro', financeiroRoutes);
-    console.log('✅ [FINANCEIRO] Rotas carregadas');
-  } catch (e) {
-    console.warn('⚠️  [FINANCEIRO] Falha ao carregar rotas:', e.message);
-  }
-
-  try {
-    // Carrinho
-    const { default: carrinhoRoutes } = await import('./src/api/routes/carrinho.js');
-    app.use('/api/carrinho', carrinhoRoutes);
-    console.log('✅ [CARRINHO] Rotas carregadas');
-
-    // Serviço de limpeza de reservas expiradas
+async function loadRoutes () {
+  const tryLoad = async (label, importPath, mountPath) => {
     try {
-      const { iniciarServicoLimpeza } = await import('./src/api/services/carrinho.js');
-      iniciarServicoLimpeza();
-      console.log('✅ [CARRINHO] Serviço de limpeza iniciado');
-    } catch (e) {
-      console.warn('⚠️  [CARRINHO] Serviço de limpeza não disponível:', e.message);
+      const mod = await import(importPath);
+      const router = mod.default ?? mod.router;
+      if (router) {
+        app.use(mountPath, router);
+        console.log(`✅ [${label}] montado em ${mountPath}`);
+      }
+    } catch (err) {
+      console.warn(`⚠️  [${label}] não carregado: ${err.message}`);
     }
-  } catch (e) {
-    console.warn('⚠️  [CARRINHO] Falha ao carregar rotas:', e.message);
-  }
+  };
 
-  try {
-    // Carteira (recarga de saldo)
-    const { default: carteiraRoutes } = await import('./src/api/routes/carteira.js');
-    app.use('/api/carteira', carteiraRoutes);
-    console.log('✅ [CARTEIRA] Rotas carregadas');
-  } catch (e) {
-    console.warn('⚠️  [CARTEIRA] Falha ao carregar rotas:', e.message);
-  }
+  await tryLoad('AUTH',           './src/api/routes/auth.js',            '/api/auth');
+  await tryLoad('PAGARME',        './src/api/routes/pagarme.js',         '/api/pagarme');
+  await tryLoad('FINANCEIRO',     './src/api/routes/financeiro.js',      '/api/financeiro');
+  await tryLoad('CARRINHO',       './src/api/routes/carrinho.js',        '/api/carrinho');
+  await tryLoad('CARTEIRA',       './src/api/routes/carteira.js',        '/api/carteira');
+  await tryLoad('SUB-USUARIOS',   './src/api/routes/sub-usuarios.js',    '/api/admin/sub-usuarios');
+  await tryLoad('BOLOES-ESP',     './src/api/routes/boloes-especiais.js','/api/boloes-especiais');
+  await tryLoad('AUTOMACAO',      './src/api/routes/automacao.js',       '/api/admin/automacao');
+  await tryLoad('CONFIGURACOES',  './src/api/routes/configuracoes.js',   '/api/admin/configuracoes');
 
+  // serviço de limpeza do carrinho
   try {
-    // Sub-usuários
-    const { default: subUsuariosRoutes } = await import('./src/api/routes/sub-usuarios.js');
-    app.use('/api/admin/sub-usuarios', subUsuariosRoutes);
-    console.log('✅ [SUB-USUARIOS] Rotas carregadas');
-  } catch (e) {
-    console.warn('⚠️  [SUB-USUARIOS] Falha ao carregar rotas:', e.message);
-  }
+    const { iniciarServicoLimpeza } = await import('./src/api/services/carrinho.js');
+    iniciarServicoLimpeza();
+    console.log('✅ [CARRINHO] serviço de limpeza ativo');
+  } catch (_) {}
 
+  // cron jobs
   try {
-    // Bolões especiais
-    const { default: boloesEspeciaisRoutes } = await import('./src/api/routes/boloes-especiais.js');
-    app.use('/api/boloes-especiais', boloesEspeciaisRoutes);
-    console.log('✅ [BOLOES-ESPECIAIS] Rotas carregadas');
-  } catch (e) {
-    console.warn('⚠️  [BOLOES-ESPECIAIS] Falha ao carregar rotas:', e.message);
-  }
-
-  try {
-    // Automação de bolões
-    const { default: automacaoRoutes } = await import('./src/api/routes/automacao.js');
-    app.use('/api/admin/automacao', automacaoRoutes);
-    console.log('✅ [AUTOMACAO] Rotas carregadas');
-  } catch (e) {
-    console.warn('⚠️  [AUTOMACAO] Falha ao carregar rotas:', e.message);
-  }
-
-  try {
-    // Configurações do sistema
-    const { default: configuracoesRoutes } = await import('./src/api/routes/configuracoes.js');
-    app.use('/api/admin/configuracoes', configuracoesRoutes);
-    console.log('✅ [CONFIGURACOES] Rotas carregadas');
-  } catch (e) {
-    console.warn('⚠️  [CONFIGURACOES] Falha ao carregar rotas:', e.message);
-  }
-
-  try {
-    // Cron jobs (automação)
     const { iniciarCronJobs } = await import('./src/api/cron-jobs.js');
     iniciarCronJobs();
-    console.log('✅ [CRON] Jobs iniciados');
-  } catch (e) {
-    console.warn('⚠️  [CRON] Jobs não disponíveis:', e.message);
-  }
+    console.log('✅ [CRON] jobs iniciados');
+  } catch (_) {}
 }
 
-// ============================================================
-// ADMIN BOLÕES (in-memory + banco)
-// ============================================================
+// ─────────────────────────────────────────────
+// ADMIN BOLÕES  (in-memory store + DB future)
+// ─────────────────────────────────────────────
 
-async function setupAdminRoutes() {
-  const { requireAuth, requireAdmin } = await import('./src/api/middleware/auth.js').catch(() => ({
-    requireAuth: (req, res, next) => next(),
-    requireAdmin: (req, res, next) => next(),
-  }));
-
-  const boloesStore = new Map();
-
-  // Seed data
-  const seedBoloes = [
-    {
-      id: 'bolao-001',
-      nome: 'Mega-Sena Especial',
-      descricao: 'Bolão especial Mega-Sena com premiação acumulada',
-      tipo: 'megasena', concurso: 2856, status: 'aberto',
-      numerosDezenas: JSON.stringify([7, 15, 23, 38, 42, 58]),
-      quantidadeCotas: 100, cotasDisponiveis: 65, valorCota: 50,
-      dataAbertura: new Date().toISOString(),
-      dataFechamento: new Date(Date.now() + 7*24*60*60*1000).toISOString(),
-      dataSorteio: new Date(Date.now() + 7*24*60*60*1000).toISOString(),
-      premiado: false, valorPremio: 550000000, faixaPremio: null, acertos: null,
-      criadoPor: 'admin', aprovado: true, aprovadoPor: 'admin',
-      visualizacoes: 1250, compartilhamentos: 85, metadados: null,
-      criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString(),
-    },
-    {
-      id: 'bolao-002',
-      nome: 'Lotofácil Semanal',
-      descricao: 'Bolão semanal da Lotofácil com 15 dezenas',
-      tipo: 'lotofacil', concurso: 3245, status: 'aberto',
-      numerosDezenas: JSON.stringify([1, 2, 3, 5, 7, 9, 10, 11, 13, 15, 17, 18, 20, 22, 25]),
-      quantidadeCotas: 50, cotasDisponiveis: 28, valorCota: 25,
-      dataAbertura: new Date().toISOString(),
-      dataFechamento: new Date(Date.now() + 5*24*60*60*1000).toISOString(),
-      dataSorteio: new Date(Date.now() + 5*24*60*60*1000).toISOString(),
-      premiado: false, valorPremio: 3500000, faixaPremio: null, acertos: null,
-      criadoPor: 'admin', aprovado: true, aprovadoPor: 'admin',
-      visualizacoes: 456, compartilhamentos: 23, metadados: null,
-      criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString(),
-    },
-    {
-      id: 'bolao-003',
-      nome: 'Quina Premium',
-      descricao: 'Bolão exclusivo da Quina',
-      tipo: 'quina', concurso: 6523, status: 'aberto',
-      numerosDezenas: JSON.stringify([12, 25, 37, 48, 62]),
-      quantidadeCotas: 80, cotasDisponiveis: 12, valorCota: 30,
-      dataAbertura: new Date().toISOString(),
-      dataFechamento: new Date(Date.now() + 3*24*60*60*1000).toISOString(),
-      dataSorteio: new Date(Date.now() + 3*24*60*60*1000).toISOString(),
-      premiado: false, valorPremio: 10000000, faixaPremio: null, acertos: null,
-      criadoPor: 'admin', aprovado: true, aprovadoPor: 'admin',
-      visualizacoes: 320, compartilhamentos: 45, metadados: null,
-      criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString(),
-    },
-  ];
-
-  seedBoloes.forEach(b => boloesStore.set(b.id, b));
-  console.log(`✅ [STORE] ${boloesStore.size} bolões seed carregados`);
-
-  // GET /api/admin/boloes
-  app.get('/api/admin/boloes', requireAuth, requireAdmin, (req, res) => {
-    try {
-      const { status, tipo, search, page = '1', limit = '50' } = req.query;
-      let boloes = Array.from(boloesStore.values());
-      boloes.sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm));
-      if (status && status !== 'todos') boloes = boloes.filter(b => b.status === status);
-      if (tipo && tipo !== 'todos') boloes = boloes.filter(b => b.tipo === tipo);
-      if (search) {
-        const s = search.toLowerCase();
-        boloes = boloes.filter(b => b.nome.toLowerCase().includes(s) || b.id.toLowerCase().includes(s));
-      }
-      const total = boloes.length;
-      const pageNum = parseInt(page), limitNum = parseInt(limit);
-      const paged = boloes.slice((pageNum - 1) * limitNum, pageNum * limitNum);
-      res.json({ success: true, boloes: paged, pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) } });
-    } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
-    }
-  });
-
-  // GET /api/admin/boloes/stats/summary
-  app.get('/api/admin/boloes/stats/summary', requireAuth, requireAdmin, (req, res) => {
-    const all = Array.from(boloesStore.values());
-    res.json({
-      success: true,
-      stats: {
-        totalBoloes: all.length,
-        boloesAbertos: all.filter(b => b.status === 'aberto').length,
-        boloesFechados: all.filter(b => b.status === 'fechado').length,
-        boloesEmAndamento: all.filter(b => b.status === 'em_andamento').length,
-        totalUsuarios: 150,
-      }
-    });
-  });
-
-  // GET /api/admin/boloes/:id
-  app.get('/api/admin/boloes/:id', requireAuth, requireAdmin, (req, res) => {
-    const bolao = boloesStore.get(req.params.id);
-    if (!bolao) return res.status(404).json({ success: false, error: 'Bolão não encontrado' });
-    res.json({ success: true, bolao });
-  });
-
-  // POST /api/admin/boloes
-  app.post('/api/admin/boloes', requireAuth, requireAdmin, (req, res) => {
-    try {
-      const { nome, descricao, tipo, concurso, numerosDezenas, quantidadeCotas, valorCota, dataAbertura, dataFechamento, dataSorteio } = req.body;
-      if (!nome || !tipo || !quantidadeCotas || !valorCota) {
-        return res.status(400).json({ success: false, error: 'Campos obrigatórios: nome, tipo, quantidadeCotas, valorCota' });
-      }
-      const novo = {
-        id: `bolao-${Date.now()}`,
-        nome, descricao: descricao || null, tipo,
-        concurso: concurso ? Number(concurso) : null,
-        status: 'aberto',
-        numerosDezenas: JSON.stringify(numerosDezenas || []),
-        quantidadeCotas: Number(quantidadeCotas),
-        cotasDisponiveis: Number(quantidadeCotas),
-        valorCota: Number(valorCota),
-        dataAbertura: dataAbertura || new Date().toISOString(),
-        dataFechamento: dataFechamento || new Date().toISOString(),
-        dataSorteio: dataSorteio || new Date().toISOString(),
-        premiado: false, valorPremio: 0, faixaPremio: null, acertos: null,
-        criadoPor: 'admin', aprovado: true, aprovadoPor: 'admin',
-        visualizacoes: 0, compartilhamentos: 0, metadados: null,
-        criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString(),
-      };
-      boloesStore.set(novo.id, novo);
-      res.status(201).json({ success: true, message: 'Bolão criado', bolao: novo });
-    } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
-    }
-  });
-
-  // PUT /api/admin/boloes/:id
-  app.put('/api/admin/boloes/:id', requireAuth, requireAdmin, (req, res) => {
-    const existing = boloesStore.get(req.params.id);
-    if (!existing) return res.status(404).json({ success: false, error: 'Bolão não encontrado' });
-    const updates = { ...req.body };
-    delete updates.id; delete updates.criadoEm; delete updates.criadoPor;
-    updates.atualizadoEm = new Date().toISOString();
-    if (updates.numerosDezenas && Array.isArray(updates.numerosDezenas)) {
-      updates.numerosDezenas = JSON.stringify(updates.numerosDezenas);
-    }
-    const updated = { ...existing, ...updates };
-    boloesStore.set(req.params.id, updated);
-    res.json({ success: true, message: 'Bolão atualizado', bolao: updated });
-  });
-
-  // DELETE /api/admin/boloes/:id
-  app.delete('/api/admin/boloes/:id', requireAuth, requireAdmin, (req, res) => {
-    if (!boloesStore.has(req.params.id)) {
-      return res.status(404).json({ success: false, error: 'Bolão não encontrado' });
-    }
-    boloesStore.delete(req.params.id);
-    res.json({ success: true, message: 'Bolão excluído' });
-  });
-
-  // PATCH /api/admin/boloes/:id/status
-  app.patch('/api/admin/boloes/:id/status', requireAuth, requireAdmin, (req, res) => {
-    const bolao = boloesStore.get(req.params.id);
-    if (!bolao) return res.status(404).json({ success: false, error: 'Bolão não encontrado' });
-    const { status } = req.body;
-    if (!status) return res.status(400).json({ success: false, error: 'Status é obrigatório' });
-    bolao.status = status;
-    bolao.atualizadoEm = new Date().toISOString();
-    boloesStore.set(req.params.id, bolao);
-    res.json({ success: true, message: 'Status atualizado', bolao });
-  });
-}
-
-// ============================================================
-// SERVIR FRONTEND REACT (dist/client)
-// ============================================================
-
-function setupStaticFiles() {
-  const distPath = path.join(__dirname, 'dist', 'client');
-  
-  // Servir arquivos estáticos
-  app.use(express.static(distPath, {
-    maxAge: '1y',
-    etag: true,
-    index: false, // Não servir index automaticamente - deixar o SPA handler abaixo fazer isso
-  }));
-
-  // SPA fallback - qualquer rota não-API retorna index.html
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    const indexPath = path.join(distPath, 'index.html');
-    res.sendFile(indexPath, (err) => {
-      if (err) {
-        res.status(200).send(`
-          <!DOCTYPE html>
-          <html lang="pt-BR">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>BolãoMax</title>
-            <style>
-              body { font-family: sans-serif; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-              .box { text-align: center; }
-              h1 { color: #02CF51; font-size: 2rem; }
-              p { color: #9ca3af; }
-              a { color: #02CF51; text-decoration: none; }
-            </style>
-          </head>
-          <body>
-            <div class="box">
-              <h1>🎰 BolãoMax</h1>
-              <p>Servidor iniciado com sucesso!</p>
-              <p><a href="/api/ping">API Status</a></p>
-            </div>
-          </body>
-          </html>
-        `);
-      }
-    });
-  });
-}
-
-// ============================================================
-// ERROR HANDLERS
-// ============================================================
-
-function setupErrorHandlers() {
-  // 404 para rotas de API
-  app.use('/api', (req, res) => {
-    res.status(404).json({ success: false, error: 'Endpoint não encontrado', path: req.path });
-  });
-
-  // Handler de erro global
-  app.use((err, req, res, next) => {
-    console.error('❌ [SERVER ERROR]', err);
-    if (req.path.startsWith('/api')) {
-      res.status(500).json({ success: false, error: 'Erro interno do servidor', message: err.message });
-    } else {
-      res.status(500).send('Erro interno do servidor');
-    }
-  });
-}
-
-// ============================================================
-// INICIALIZAR SERVIDOR
-// ============================================================
-
-async function startServer() {
-  console.log('\n🎰 ================================================');
-  console.log('   BolãoMax - Iniciando servidor...');
-  console.log(`   Ambiente: ${NODE_ENV}`);
-  console.log(`   Porta: ${PORT}`);
-  console.log(`   Database: ${process.env.DATABASE_URL ? 'PostgreSQL ✅' : 'SQLite (local) 💾'}`);
-  console.log('================================================\n');
+async function loadAdminBoloes () {
+  let requireAuth  = (_r, _s, n) => n();
+  let requireAdmin = (_r, _s, n) => n();
 
   try {
-    // Carregar rotas da API
-    await loadRoutes();
-    
-    // Configurar rotas admin de bolões
-    await setupAdminRoutes();
+    const mod = await import('./src/api/middleware/auth.js');
+    requireAuth  = mod.requireAuth  ?? requireAuth;
+    requireAdmin = mod.requireAdmin ?? requireAdmin;
+  } catch (_) {}
 
-    // Servir frontend
-    setupStaticFiles();
-
-    // Error handlers (devem ser últimos)
-    setupErrorHandlers();
-
-    // Iniciar servidor HTTP
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log('\n🚀 ================================================');
-      console.log(`   BolãoMax rodando em http://0.0.0.0:${PORT}`);
-      console.log('');
-      console.log('   Endpoints principais:');
-      console.log('   GET  /api/ping          - Health check');
-      console.log('   GET  /api/health        - Status detalhado');
-      console.log('   POST /api/auth/login    - Login');
-      console.log('   POST /api/auth/register - Cadastro');
-      console.log('   GET  /api/admin/boloes  - Listar bolões');
-      console.log('   GET  /                  - Frontend React');
-      console.log('================================================\n');
+  // seed em memória
+  const store = new Map();
+  [
+    { id:'b-001', nome:'Mega-Sena Especial',  tipo:'megasena',  concurso:2856, status:'aberto', quantidadeCotas:100, cotasDisponiveis:65,  valorCota:50,  valorPremio:550000000 },
+    { id:'b-002', nome:'Lotofácil Semanal',   tipo:'lotofacil', concurso:3245, status:'aberto', quantidadeCotas:50,  cotasDisponiveis:28,  valorCota:25,  valorPremio:3500000 },
+    { id:'b-003', nome:'Quina Premium',       tipo:'quina',     concurso:6523, status:'aberto', quantidadeCotas:80,  cotasDisponiveis:12,  valorCota:30,  valorPremio:10000000 },
+    { id:'b-004', nome:'Dupla Sena Relâmpago',tipo:'duplasena', concurso:2512, status:'aberto', quantidadeCotas:60,  cotasDisponiveis:40,  valorCota:20,  valorPremio:1200000 },
+  ].forEach(b => {
+    const now = new Date().toISOString();
+    store.set(b.id, {
+      ...b,
+      descricao: `Bolão ${b.nome} — participe agora!`,
+      numerosDezenas: JSON.stringify([]),
+      dataAbertura:   now,
+      dataFechamento: new Date(Date.now() + 7*86400*1000).toISOString(),
+      dataSorteio:    new Date(Date.now() + 7*86400*1000).toISOString(),
+      premiado:false, faixaPremio:null, acertos:null,
+      criadoPor:'admin', aprovado:true, aprovadoPor:'admin',
+      visualizacoes:0, compartilhamentos:0, metadados:null,
+      criadoEm:now, atualizadoEm:now,
     });
+  });
+  console.log(`✅ [STORE] ${store.size} bolões seed carregados`);
 
-  } catch (error) {
-    console.error('❌ [FATAL] Erro ao iniciar servidor:', error);
-    process.exit(1);
-  }
+  // ── listagem
+  app.get('/api/admin/boloes', requireAuth, requireAdmin, (req, res) => {
+    let list = [...store.values()].sort((a,b)=>new Date(b.criadoEm)-new Date(a.criadoEm));
+    const { status, tipo, search, page='1', limit='50' } = req.query;
+    if (status && status !== 'todos') list = list.filter(b=>b.status===status);
+    if (tipo   && tipo   !== 'todos') list = list.filter(b=>b.tipo===tipo);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(b=>b.nome.toLowerCase().includes(q)||b.id.toLowerCase().includes(q));
+    }
+    const p=parseInt(page), l=parseInt(limit), total=list.length;
+    res.json({ success:true, boloes:list.slice((p-1)*l, p*l),
+               pagination:{ page:p, limit:l, total, totalPages:Math.ceil(total/l) } });
+  });
+
+  // ── stats
+  app.get('/api/admin/boloes/stats/summary', requireAuth, requireAdmin, (_req, res) => {
+    const all=[...store.values()];
+    res.json({ success:true, stats:{
+      totalBoloes:all.length,
+      boloesAbertos:   all.filter(b=>b.status==='aberto').length,
+      boloesFechados:  all.filter(b=>b.status==='fechado').length,
+      boloesEmAndamento:all.filter(b=>b.status==='em_andamento').length,
+      totalUsuarios:150,
+    }});
+  });
+
+  // ── busca por id
+  app.get('/api/admin/boloes/:id', requireAuth, requireAdmin, (req, res) => {
+    const b = store.get(req.params.id);
+    if (!b) return res.status(404).json({ success:false, error:'Bolão não encontrado' });
+    res.json({ success:true, bolao:b });
+  });
+
+  // ── criar
+  app.post('/api/admin/boloes', requireAuth, requireAdmin, (req, res) => {
+    const { nome, descricao, tipo, concurso, numerosDezenas, quantidadeCotas, valorCota,
+            dataAbertura, dataFechamento, dataSorteio } = req.body;
+    if (!nome||!tipo||!quantidadeCotas||!valorCota)
+      return res.status(400).json({ success:false, error:'Campos obrigatórios: nome, tipo, quantidadeCotas, valorCota' });
+    const now=new Date().toISOString();
+    const novo = {
+      id:`b-${Date.now()}`, nome, descricao:descricao||null, tipo,
+      concurso:concurso?Number(concurso):null, status:'aberto',
+      numerosDezenas:JSON.stringify(numerosDezenas||[]),
+      quantidadeCotas:Number(quantidadeCotas), cotasDisponiveis:Number(quantidadeCotas),
+      valorCota:Number(valorCota),
+      dataAbertura:dataAbertura||now, dataFechamento:dataFechamento||now, dataSorteio:dataSorteio||now,
+      premiado:false, valorPremio:0, faixaPremio:null, acertos:null,
+      criadoPor:'admin', aprovado:true, aprovadoPor:'admin',
+      visualizacoes:0, compartilhamentos:0, metadados:null, criadoEm:now, atualizadoEm:now,
+    };
+    store.set(novo.id, novo);
+    res.status(201).json({ success:true, message:'Bolão criado', bolao:novo });
+  });
+
+  // ── atualizar
+  app.put('/api/admin/boloes/:id', requireAuth, requireAdmin, (req, res) => {
+    const b=store.get(req.params.id);
+    if (!b) return res.status(404).json({ success:false, error:'Bolão não encontrado' });
+    const upd={...req.body}; delete upd.id; delete upd.criadoEm; delete upd.criadoPor;
+    if (Array.isArray(upd.numerosDezenas)) upd.numerosDezenas=JSON.stringify(upd.numerosDezenas);
+    upd.atualizadoEm=new Date().toISOString();
+    const updated={...b,...upd};
+    store.set(req.params.id, updated);
+    res.json({ success:true, message:'Bolão atualizado', bolao:updated });
+  });
+
+  // ── excluir
+  app.delete('/api/admin/boloes/:id', requireAuth, requireAdmin, (req, res) => {
+    if (!store.has(req.params.id))
+      return res.status(404).json({ success:false, error:'Bolão não encontrado' });
+    store.delete(req.params.id);
+    res.json({ success:true, message:'Bolão excluído' });
+  });
+
+  // ── alterar status
+  app.patch('/api/admin/boloes/:id/status', requireAuth, requireAdmin, (req, res) => {
+    const b=store.get(req.params.id);
+    if (!b) return res.status(404).json({ success:false, error:'Bolão não encontrado' });
+    b.status=req.body.status; b.atualizadoEm=new Date().toISOString();
+    store.set(req.params.id, b);
+    res.json({ success:true, message:'Status atualizado', bolao:b });
+  });
 }
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM recebido, encerrando...');
+// ─────────────────────────────────────────────
+// FRONTEND ESTÁTICO  (dist/)
+// ─────────────────────────────────────────────
+
+function serveStatic () {
+  // assets com cache longo
+  app.use(express.static(DIST, { maxAge:'1y', index:false }));
+
+  // SPA fallback  ← Express 5 safe (sem wildcard *)
+  app.get(/^(?!\/api|\/health).*/, (_req, res) => {
+    const index = path.join(DIST, 'index.html');
+    res.sendFile(index, err => {
+      if (err) {
+        res.status(200).send(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BolãoMax</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#111827;color:#fff;display:flex;align-items:center;
+         justify-content:center;height:100vh;font-family:system-ui,sans-serif}
+    h1{color:#02CF51;font-size:2rem;margin-bottom:.5rem}
+    p{color:#9ca3af;margin:.3rem 0}
+    a{color:#02CF51}
+  </style>
+</head>
+<body>
+  <div style="text-align:center">
+    <h1>🎰 BolãoMax</h1>
+    <p>Servidor no ar!</p>
+    <p><a href="/api/ping">→ API Status</a></p>
+  </div>
+</body>
+</html>`);
+      }
+    });
+  });
+}
+
+// ─────────────────────────────────────────────
+// ERROR HANDLERS  (Express 5: 4-arg function)
+// ─────────────────────────────────────────────
+
+function setupErrors () {
+  // 404 de API
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ success:false, error:'Endpoint não encontrado' });
+  });
+
+  // handler global de erros  (Express 5 aceita async)
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, _req, res, _next) => {
+    console.error('❌ [SERVER]', err);
+    res.status(err.status||500).json({ success:false, error:'Erro interno', message:err.message });
+  });
+}
+
+// ─────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────
+
+async function boot () {
+  console.log(`\n🎰 BolãoMax  |  env=${process.env.NODE_ENV||'dev'}  port=${PORT}`);
+  console.log(`   DB: ${process.env.DATABASE_URL ? 'PostgreSQL ✅' : 'SQLite 💾'}\n`);
+
+  await loadRoutes();
+  await loadAdminBoloes();
+  serveStatic();
+  setupErrors();
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n🚀 Servidor ouvindo em http://0.0.0.0:${PORT}`);
+    console.log('   GET  /health       → healthcheck Railway');
+    console.log('   GET  /api/ping     → status da API');
+    console.log('   GET  /             → frontend React\n');
+  });
+}
+
+// graceful shutdown
+['SIGTERM','SIGINT'].forEach(sig => process.on(sig, () => {
+  console.log(`\n🛑 ${sig} recebido — encerrando...`);
   process.exit(0);
-});
+}));
 
-process.on('SIGINT', () => {
-  console.log('\n🛑 SIGINT recebido, encerrando...');
-  process.exit(0);
-});
+process.on('uncaughtException',  err => { console.error('UNCAUGHT', err); process.exit(1); });
+process.on('unhandledRejection', err => { console.error('UNHANDLED', err); });
 
-process.on('uncaughtException', (err) => {
-  console.error('❌ [UNCAUGHT EXCEPTION]', err);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ [UNHANDLED REJECTION]', reason);
-});
-
-// Start
-startServer();
+boot();
