@@ -83,6 +83,7 @@ async function loadRoutes () {
   };
 
   await tryLoad('AUTH',           './src/api/routes/auth.js',            '/api/auth');
+  await tryLoad('BOLOES',         './src/api/routes/boloes.js',          '/api/boloes');
   await tryLoad('PAGARME',        './src/api/routes/pagarme.js',         '/api/pagarme');
   await tryLoad('FINANCEIRO',     './src/api/routes/financeiro.js',      '/api/financeiro');
   await tryLoad('CARRINHO',       './src/api/routes/carrinho.js',        '/api/carrinho');
@@ -108,7 +109,25 @@ async function loadRoutes () {
 }
 
 // ─────────────────────────────────────────────
-// ADMIN BOLÕES  (in-memory store + DB future)
+// SEED DE BOLÕES  (garante dados iniciais no DB)
+// ─────────────────────────────────────────────
+
+async function seedBoloes () {
+  try {
+    const { seedBoloes: seed } = await import('./src/api/services/boloes.js');
+    const result = await seed(null);
+    if (result?.seeded) {
+      console.log(`✅ [SEED] ${result.total} bolões inseridos no banco`);
+    } else {
+      console.log(`ℹ️  [SEED] Banco já possui bolões — seed ignorado`);
+    }
+  } catch (err) {
+    console.warn(`⚠️  [SEED] Falha no seed de bolões: ${err.message}`);
+  }
+}
+
+// ─────────────────────────────────────────────
+// ADMIN BOLÕES  (rotas CRUD via service real)
 // ─────────────────────────────────────────────
 
 async function loadAdminBoloes () {
@@ -121,113 +140,94 @@ async function loadAdminBoloes () {
     requireAdmin = mod.requireAdmin ?? requireAdmin;
   } catch (_) {}
 
-  // seed em memória
-  const store = new Map();
-  [
-    { id:'b-001', nome:'Mega-Sena Especial',  tipo:'megasena',  concurso:2856, status:'aberto', quantidadeCotas:100, cotasDisponiveis:65,  valorCota:50,  valorPremio:550000000 },
-    { id:'b-002', nome:'Lotofácil Semanal',   tipo:'lotofacil', concurso:3245, status:'aberto', quantidadeCotas:50,  cotasDisponiveis:28,  valorCota:25,  valorPremio:3500000 },
-    { id:'b-003', nome:'Quina Premium',       tipo:'quina',     concurso:6523, status:'aberto', quantidadeCotas:80,  cotasDisponiveis:12,  valorCota:30,  valorPremio:10000000 },
-    { id:'b-004', nome:'Dupla Sena Relâmpago',tipo:'duplasena', concurso:2512, status:'aberto', quantidadeCotas:60,  cotasDisponiveis:40,  valorCota:20,  valorPremio:1200000 },
-  ].forEach(b => {
-    const now = new Date().toISOString();
-    store.set(b.id, {
-      ...b,
-      descricao: `Bolão ${b.nome} — participe agora!`,
-      numerosDezenas: JSON.stringify([]),
-      dataAbertura:   now,
-      dataFechamento: new Date(Date.now() + 7*86400*1000).toISOString(),
-      dataSorteio:    new Date(Date.now() + 7*86400*1000).toISOString(),
-      premiado:false, faixaPremio:null, acertos:null,
-      criadoPor:'admin', aprovado:true, aprovadoPor:'admin',
-      visualizacoes:0, compartilhamentos:0, metadados:null,
-      criadoEm:now, atualizadoEm:now,
-    });
-  });
-  console.log(`✅ [STORE] ${store.size} bolões seed carregados`);
+  // Importar service de bolões (DB real)
+  let boloesService = null;
+  try {
+    boloesService = await import('./src/api/services/boloes.js');
+  } catch (e) {
+    console.warn('[ADMIN-BOLOES] Service não carregado:', e.message);
+  }
 
-  // ── listagem
-  app.get('/api/admin/boloes', requireAuth, requireAdmin, (req, res) => {
-    let list = [...store.values()].sort((a,b)=>new Date(b.criadoEm)-new Date(a.criadoEm));
-    const { status, tipo, search, page='1', limit='50' } = req.query;
-    if (status && status !== 'todos') list = list.filter(b=>b.status===status);
-    if (tipo   && tipo   !== 'todos') list = list.filter(b=>b.tipo===tipo);
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(b=>b.nome.toLowerCase().includes(q)||b.id.toLowerCase().includes(q));
+  // ── listagem admin
+  app.get('/api/admin/boloes', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      if (boloesService) {
+        const { status, tipo, page = 1, limit = 50, search } = req.query;
+        const result = await boloesService.listarBoloes({ status: status || 'todos', tipo, page: parseInt(page), limit: parseInt(limit), search });
+        return res.json({ success: true, ...result });
+      }
+      res.json({ success: true, boloes: [], pagination: { page: 1, limit: 50, total: 0, totalPages: 0 } });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
     }
-    const p=parseInt(page), l=parseInt(limit), total=list.length;
-    res.json({ success:true, boloes:list.slice((p-1)*l, p*l),
-               pagination:{ page:p, limit:l, total, totalPages:Math.ceil(total/l) } });
   });
 
   // ── stats
-  app.get('/api/admin/boloes/stats/summary', requireAuth, requireAdmin, (_req, res) => {
-    const all=[...store.values()];
-    res.json({ success:true, stats:{
-      totalBoloes:all.length,
-      boloesAbertos:   all.filter(b=>b.status==='aberto').length,
-      boloesFechados:  all.filter(b=>b.status==='fechado').length,
-      boloesEmAndamento:all.filter(b=>b.status==='em_andamento').length,
-      totalUsuarios:150,
-    }});
+  app.get('/api/admin/boloes/stats/summary', requireAuth, requireAdmin, async (_req, res) => {
+    try {
+      if (boloesService) {
+        const stats = await boloesService.estatisticas();
+        return res.json({ success: true, stats });
+      }
+      res.json({ success: true, stats: { total: 0 } });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   // ── busca por id
-  app.get('/api/admin/boloes/:id', requireAuth, requireAdmin, (req, res) => {
-    const b = store.get(req.params.id);
-    if (!b) return res.status(404).json({ success:false, error:'Bolão não encontrado' });
-    res.json({ success:true, bolao:b });
+  app.get('/api/admin/boloes/:id', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const bolao = boloesService ? await boloesService.buscarBolaoPorId(req.params.id) : null;
+      if (!bolao) return res.status(404).json({ success: false, error: 'Bolão não encontrado' });
+      res.json({ success: true, bolao });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   // ── criar
-  app.post('/api/admin/boloes', requireAuth, requireAdmin, (req, res) => {
-    const { nome, descricao, tipo, concurso, numerosDezenas, quantidadeCotas, valorCota,
-            dataAbertura, dataFechamento, dataSorteio } = req.body;
-    if (!nome||!tipo||!quantidadeCotas||!valorCota)
-      return res.status(400).json({ success:false, error:'Campos obrigatórios: nome, tipo, quantidadeCotas, valorCota' });
-    const now=new Date().toISOString();
-    const novo = {
-      id:`b-${Date.now()}`, nome, descricao:descricao||null, tipo,
-      concurso:concurso?Number(concurso):null, status:'aberto',
-      numerosDezenas:JSON.stringify(numerosDezenas||[]),
-      quantidadeCotas:Number(quantidadeCotas), cotasDisponiveis:Number(quantidadeCotas),
-      valorCota:Number(valorCota),
-      dataAbertura:dataAbertura||now, dataFechamento:dataFechamento||now, dataSorteio:dataSorteio||now,
-      premiado:false, valorPremio:0, faixaPremio:null, acertos:null,
-      criadoPor:'admin', aprovado:true, aprovadoPor:'admin',
-      visualizacoes:0, compartilhamentos:0, metadados:null, criadoEm:now, atualizadoEm:now,
-    };
-    store.set(novo.id, novo);
-    res.status(201).json({ success:true, message:'Bolão criado', bolao:novo });
+  app.post('/api/admin/boloes', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      if (!boloesService) return res.status(503).json({ success: false, error: 'Service indisponível' });
+      const bolao = await boloesService.criarBolao({ ...req.body, criadoPor: req.user?.id });
+      res.status(201).json({ success: true, message: 'Bolão criado', bolao });
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+    }
   });
 
   // ── atualizar
-  app.put('/api/admin/boloes/:id', requireAuth, requireAdmin, (req, res) => {
-    const b=store.get(req.params.id);
-    if (!b) return res.status(404).json({ success:false, error:'Bolão não encontrado' });
-    const upd={...req.body}; delete upd.id; delete upd.criadoEm; delete upd.criadoPor;
-    if (Array.isArray(upd.numerosDezenas)) upd.numerosDezenas=JSON.stringify(upd.numerosDezenas);
-    upd.atualizadoEm=new Date().toISOString();
-    const updated={...b,...upd};
-    store.set(req.params.id, updated);
-    res.json({ success:true, message:'Bolão atualizado', bolao:updated });
+  app.put('/api/admin/boloes/:id', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      if (!boloesService) return res.status(503).json({ success: false, error: 'Service indisponível' });
+      const bolao = await boloesService.atualizarBolao(req.params.id, req.body);
+      res.json({ success: true, message: 'Bolão atualizado', bolao });
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+    }
   });
 
   // ── excluir
-  app.delete('/api/admin/boloes/:id', requireAuth, requireAdmin, (req, res) => {
-    if (!store.has(req.params.id))
-      return res.status(404).json({ success:false, error:'Bolão não encontrado' });
-    store.delete(req.params.id);
-    res.json({ success:true, message:'Bolão excluído' });
+  app.delete('/api/admin/boloes/:id', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      if (!boloesService) return res.status(503).json({ success: false, error: 'Service indisponível' });
+      await boloesService.excluirBolao(req.params.id);
+      res.json({ success: true, message: 'Bolão excluído' });
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+    }
   });
 
   // ── alterar status
-  app.patch('/api/admin/boloes/:id/status', requireAuth, requireAdmin, (req, res) => {
-    const b=store.get(req.params.id);
-    if (!b) return res.status(404).json({ success:false, error:'Bolão não encontrado' });
-    b.status=req.body.status; b.atualizadoEm=new Date().toISOString();
-    store.set(req.params.id, b);
-    res.json({ success:true, message:'Status atualizado', bolao:b });
+  app.patch('/api/admin/boloes/:id/status', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      if (!boloesService) return res.status(503).json({ success: false, error: 'Service indisponível' });
+      const bolao = await boloesService.alterarStatus(req.params.id, req.body.status);
+      res.json({ success: true, message: 'Status atualizado', bolao });
+    } catch (err) {
+      res.status(400).json({ success: false, error: err.message });
+    }
   });
 }
 
@@ -299,6 +299,7 @@ async function boot () {
   console.log(`   DB: ${process.env.DATABASE_URL ? 'PostgreSQL ✅' : 'SQLite 💾'}\n`);
 
   await loadRoutes();
+  await seedBoloes();
   await loadAdminBoloes();
   serveStatic();
   setupErrors();
