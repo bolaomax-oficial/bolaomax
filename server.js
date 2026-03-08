@@ -85,6 +85,8 @@ async function loadRoutes () {
   await tryLoad('AUTH',           './src/api/routes/auth.js',            '/api/auth');
   await tryLoad('BOLOES',         './src/api/routes/boloes.js',          '/api/boloes');
   await tryLoad('PERFIL',         './src/api/routes/perfil.js',          '/api/perfil');
+  await tryLoad('RESULTADOS',     './src/api/routes/resultados.js',      '/api/resultados');
+  await tryLoad('NOTIFICACOES',   './src/api/routes/notificacoes.js',    '/api/notificacoes');
   await tryLoad('PAGARME',        './src/api/routes/pagarme.js',         '/api/pagarme');
   await tryLoad('FINANCEIRO',     './src/api/routes/financeiro.js',      '/api/financeiro');
   await tryLoad('CARRINHO',       './src/api/routes/carrinho.js',        '/api/carrinho');
